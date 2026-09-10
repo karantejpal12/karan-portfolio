@@ -27,15 +27,15 @@ const PortfolioAI = () => {
     setLoading(true);
 
     try {
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
+      // Call the backend proxy instead of Anthropic API directly
+      const response = await fetch('/api/chat', {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'x-api-key': process.env.REACT_APP_CLAUDE_API_KEY
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          model: 'claude-sonnet-4-6',
-          max_tokens: 500,
+          messages: messages.map(msg => ({
+            role: msg.role,
+            content: msg.content
+          })).concat([{ role: 'user', content: userMessage }]),
           system: `You are an AI assistant representing Karan Tejpal, a Business Intelligence Engineer with 8+ years of experience. You have deep knowledge of his background, skills, work, and media coverage.
 
 NAME: Karan Tejpal
@@ -86,13 +86,14 @@ MEDIA COVERAGE & PUBLICATIONS:
 5. AIFN - "The AI Evolution: Redefining Mobile App Experience"
 6. Google Scholar - Academic publications on AI in healthcare
 
-Keep responses conversational, natural, and professional. If asked about publications or media coverage, reference these sources. Be enthusiastic about his thought leadership in AI and healthcare analytics.`,
-          messages: messages.map(msg => ({
-            role: msg.role,
-            content: msg.content
-          })).concat([{ role: 'user', content: userMessage }])
+Keep responses conversational, natural, and professional. If asked about publications or media coverage, reference these sources. Be enthusiastic about his thought leadership in AI and healthcare analytics.`
         })
       });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to get response');
+      }
 
       const data = await response.json();
       const assistantMessage = data.content[0]?.text || 'Sorry, I couldn\'t process that.';
@@ -101,7 +102,7 @@ Keep responses conversational, natural, and professional. If asked about publica
       console.error('Error:', error);
       setMessages(prev => [...prev, { 
         role: 'assistant', 
-        content: 'I encountered an error. Make sure your API key is configured correctly.' 
+        content: `Error: ${error.message}. Please try again.`
       }]);
     }
 
